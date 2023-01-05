@@ -581,9 +581,9 @@ db.db_initial().then(async () => {
         console.error('You are offline or bad bot token', e)
         process.exit()
     })
-    if (config.web.enabled && !process.env.WEBLESS) {
-        import('./web.js')
-    }
+    // if (config.web.enabled && !process.env.WEBLESS) {
+    //     import('./web.js')
+    // }
 })
 
 /**
@@ -600,40 +600,38 @@ async function catchily(e, chat_id, language_code = 'en') {
         bot.api.sendMessage(config.tg.master_id, e, {
             disable_web_page_preview: true
         })
-        if (e.response) {
-            let description = e.response.description
-            if (description.includes('MEDIA_CAPTION_TOO_LONG')) {
+        if (!e.ok) {
+            const description = e.description.toLowerCase()
+            if (description.includes('media_caption_too_long')) {
                 bot.api.sendMessage(chat_id, _l(language_code, 'error_text_too_long'), default_extra)
                 return false
-            } else if (description.includes('can\'t parse entities: Character')) {
-                bot.api.sendMessage(chat_id, _l(language_code, 'error_format', e.response.description))
+            } else if (description.includes('can\'t parse entities: character')) {
+                bot.api.sendMessage(chat_id, _l(language_code, 'error_format', e.description))
                 return false
                 // banned by user
-            } else if (description.includes('Forbidden:')) {
+            } else if (description.includes('forbidden:')) {
                 return false
                 // not have permission
             } else if (description.includes('not enough rights to send')) {
                 bot.api.sendMessage(chat_id, _l(language_code, 'error_not_enough_rights'), default_extra)
                 return false
                 // just a moment
-            } else if (description.includes('Too Many Requests')) {
-                console.log(chat_id, 'sleep', e.response.parameters.retry_after, 's')
-                // await sleep(e.response.parameters.retry_after * 1000)
+            } else if (description.includes('too many requests')) {
+                console.log(chat_id, 'sleep', e.description.parameters.retry_after, 's')
+                // await sleep(e.description.parameters.retry_after * 1000)
                 return 'redo'
-            } else if (description.includes('failed to get HTTP URL content') || description.includes('wrong file identifier/HTTP URL specified') || description.includes('wrong type of the web page content') || description.includes('group send failed')) {
+            } else if (description.includes('failed to get http url content') || description.includes('wrong file identifier/http url specified') || description.includes('wrong type of the web page content') || description.includes('group send failed')) {
                 let photo_urls = []
-                if (e.on) {
-                    if (e.on.method === 'sendPhoto') {
-                        photo_urls[0] = e.on.payload.photo
-                    } else if (e.on.method === 'sendMediaGroup' && e.on.payload.media) {
-                        photo_urls = e.on.payload.media.filter(m => {
-                            return m.media && typeof m.media === 'string' && m.media.includes('https://')
-                        }).map(m => {
-                            return m.media
-                        })
-                    }
+                if (e.method === 'sendPhoto') {
+                    photo_urls[0] = e.payload.photo
+                } else if (e.method === 'sendMediaGroup' && e.payload.media) {
+                    photo_urls = e.payload.media.filter(m => {
+                        return m.media && typeof m.media === 'string' && m.media.includes('https://')
+                    }).map(m => {
+                        return m.media
+                    })
                 }
-                // honsole.dev(photo_urls)
+                honsole.dev(photo_urls)
                 if (config.tg.refetch_api && photo_urls) {
                     try {
                         await axios.post(config.tg.refetch_api, {
